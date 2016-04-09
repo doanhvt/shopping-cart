@@ -5,41 +5,36 @@ class Shopping extends CI_Controller {
     function __construct() {
         parent::__construct();
         $this->load->library('cart');
-        $this->load->model('shopping_model');
+        $this->load->model('m_shopping');
     }
 
     function index() {
+                
         $this->load->library('pagination');
-        $this->db->select('*');
-        $this->db->from('cart');
-        $this->db->order_by('id desc');
-        $offset = $this->uri->segment(2);
-        $limit = 6;
-        $this->db->limit($limit, $offset);
-        $query_poster = $this->db->get();
 // pagination        
-        $config['base_url'] = site_url() . '/shopping/';
-        $config['total_rows'] = $this->db->count_all('pagination');
-        $config['uri_segment'] = 2;
-        $config['per_page'] = $limit;
+        $config['base_url'] = site_url("shopping/index");
+        $config['total_rows'] = $this->db->count_all('products');
+        $config['uri_segment'] = 3;
+        $config['per_page'] = 3;
         $config['prev_link'] = '&lt;';
         $config['next_link'] = '&gt;';
         $config['last_link'] = 'Cuối';
         $config['first_link'] = 'Đầu';
         $this->pagination->initialize($config);
         $paginator = $this->pagination->create_links();
-// End pagination                      
+// End pagination
+        $page = $this->uri->segment(3);
+        $offset = isset($page) ? $page : 0;
+        $query = $this->m_shopping->get_list_products($config['per_page'], $offset);
         $ndata = array(
             'paginator' => $paginator,
-            'post' => $query_poster,
-            'title' => "CodeIgniter Shopping Cart Demo live",
-            'keywords' => "Hoangcode Programming Blog, Huong Dan, jQuery, Ajax, PHP, MySQL and Demo",
-            'description' => "Hoangcode là Blog về lập trình được phát triển và duy trì bởi Hoàng Code CI. Hướng dẫn cơ bản, Jquery, Ajax, PHP, Demo, CSS3, Javascript, Codeigniter and MySQL."
+            'post' => $query,
+            'offset' =>$offset        
         );
-        $this->load->view('tem-shopping', $ndata);
+        $this->load->view('v_shopping', $ndata);
     }
 
-    function add() {
+    function add($offset) {
         $insert_data = array(
             'id' => $this->input->post('id'),
             'name' => $this->input->post('name'),
@@ -47,7 +42,7 @@ class Shopping extends CI_Controller {
             'qty' => 1
         );
         $this->cart->insert($insert_data);
-        redirect('shopping.html');
+        redirect('shopping/index/'.$offset);
     }
 
     function remove($rowid) {
@@ -60,7 +55,7 @@ class Shopping extends CI_Controller {
             );
             $this->cart->update($data);
         }
-        redirect('shopping.html');
+        redirect('shopping');
     }
 
     function update_cart() {
@@ -68,27 +63,25 @@ class Shopping extends CI_Controller {
         foreach ($cart_info as $id => $cart) {
             $rowid = $cart['rowid'];
             $price = $cart['price'];
-            $amount = $price * $cart['qty'];
+//            $amount = $price * $cart['qty'];
             $qty = $cart['qty'];
 
             $data = array(
                 'rowid' => $rowid,
                 'price' => $price,
-                'amount' => $amount,
+//                'amount' => $amount,
                 'qty' => $qty
             );
             $this->cart->update($data);
         }
-        redirect('shopping.html');
+        redirect('shopping');
     }
 
     function billing_view() {
         $ndata = array(
-            'title' => "Thanh toán",
-            'keywords' => "Hoangcode Programming Blog, Huong Dan, jQuery, Ajax, PHP, MySQL and Demo",
-            'description' => "Hoangcode là Blog về lập trình được phát triển và duy trì bởi Hoàng Code CI. Hướng dẫn cơ bản, Jquery, Ajax, PHP, Demo, CSS3, Javascript, Codeigniter and MySQL."
+            'title' => "Thanh toán",          
         );
-        $this->load->view('tem-thanhtoan', $ndata);
+        $this->load->view('v_thanhtoan', $ndata);
     }
 
     function save_order() {
@@ -97,16 +90,16 @@ class Shopping extends CI_Controller {
             'email' => $this->input->post('email'),
             'phone' => $this->input->post('phone'),
             'address' => $this->input->post('address'),
-            'date' => date('Y-m-d')
+            'date' => date('Y-m-d H:i:s')
         );
-        $cust_id = $this->shopping_model->insert_thanhtoan($customer);
+        $cust_id = $this->m_shopping->insert_thanhtoan($customer);
 
         $order = array(
-            'date' => date('Y-m-d'),
+            'date' => date('Y-m-d H:i:s'),
             'customerid' => $cust_id
         );
 
-        $ord_id = $this->shopping_model->insert_order($order);
+        $ord_id = $this->m_shopping->insert_order($order);
 
         if ($cart = $this->cart->contents()):
             foreach ($cart as $item):
@@ -116,10 +109,10 @@ class Shopping extends CI_Controller {
                     'quantity' => $item['qty'],
                     'price' => $item['price']
                 );
-                $cust_id = $this->shopping_model->insert_order_detail($order_detail);
+                $cust_id = $this->m_shopping->insert_order_detail($order_detail);
             endforeach;
         endif;
-        $this->load->view('tem-success');
+        $this->load->view('v_success');
     }
 
 }
